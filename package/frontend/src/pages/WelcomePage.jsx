@@ -1,16 +1,18 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
-import { Shield, ArrowRight, AlertCircle } from 'lucide-react';
+import { Shield, ArrowRight, AlertCircle, BookOpen } from 'lucide-react';
 import axios from 'axios';
 import { healthAPI } from '../api';
 
 const WelcomePage = () => {
   const [cardKey, setCardKey] = useState('');
   const [showWarning, setShowWarning] = useState(false);
+  const [showInstructions, setShowInstructions] = useState(false);
   const [loading, setLoading] = useState(false);
   const [apiStatus, setApiStatus] = useState(null);
   const [readCountdown, setReadCountdown] = useState(0);
+  const [instructionCountdown, setInstructionCountdown] = useState(0);
   const navigate = useNavigate();
 
   // 检查 API 可用性 - 改为静默检查，避免启动时报错
@@ -63,6 +65,27 @@ const WelcomePage = () => {
     return () => clearInterval(intervalId);
   }, [showWarning]);
 
+  // 使用说明强制阅读：打开弹窗后倒计时 10 秒，倒计时结束才能继续
+  useEffect(() => {
+    if (!showInstructions) {
+      setInstructionCountdown(0);
+      return;
+    }
+
+    setInstructionCountdown(10);
+    const intervalId = setInterval(() => {
+      setInstructionCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(intervalId);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(intervalId);
+  }, [showInstructions]);
+
   const handleContinue = async () => {
     if (!cardKey.trim()) {
       toast.error('请输入卡密');
@@ -104,6 +127,14 @@ const WelcomePage = () => {
     if (readCountdown > 0) {
       return;
     }
+    setShowWarning(false);
+    setShowInstructions(true);
+  };
+
+  const handleStartUsing = () => {
+    if (instructionCountdown > 0) {
+      return;
+    }
     localStorage.setItem('cardKey', cardKey);
     navigate('/workspace');
   };
@@ -120,7 +151,7 @@ const WelcomePage = () => {
       </button>
 
       <div className="max-w-md w-full space-y-8">
-        {!showWarning ? (
+        {!showWarning && !showInstructions ? (
           <div className="bg-white/80 backdrop-blur-2xl rounded-3xl shadow-2xl border border-white/20 p-8 space-y-8 animate-fade-in-up">
             {/* Logo/标题区域 */}
             <div className="text-center space-y-4">
@@ -180,7 +211,7 @@ const WelcomePage = () => {
               </p>
             </div>
           </div>
-        ) : (
+        ) : showWarning ? (
           <div className="bg-white/80 backdrop-blur-2xl rounded-3xl shadow-2xl border border-white/20 p-8 space-y-6 animate-scale-in">
             {/* 图标和标题 */}
             <div className="text-center">
@@ -246,7 +277,72 @@ const WelcomePage = () => {
               </button>
             </div>
           </div>
-        )}
+        ) : showInstructions ? (
+          <div className="bg-white/80 backdrop-blur-2xl rounded-3xl shadow-2xl border border-white/20 p-8 space-y-6 animate-scale-in">
+            {/* 图标和标题 */}
+            <div className="text-center">
+              <div className="inline-flex items-center justify-center w-16 h-16 bg-ios-blue rounded-[18px] shadow-md mb-4">
+                <BookOpen className="w-8 h-8 text-white" />
+              </div>
+              <h2 className="text-xl font-bold text-black tracking-tight mb-1">
+                使用说明
+              </h2>
+              <p className="text-sm text-ios-gray">请仔细阅读以下内容</p>
+            </div>
+
+            {/* 使用说明内容 - 预留位置 */}
+            <div className="bg-gray-50 rounded-xl p-5 space-y-4">
+              <div className="space-y-3 text-black text-[15px] leading-relaxed">
+                <div className="flex gap-3">
+                  <span className="flex-shrink-0 w-5 h-5 bg-ios-blue text-white rounded-full flex items-center justify-center text-xs font-bold mt-0.5">1</span>
+                  <p>表格相关内容是AI生成率和查重率的重灾区，为了避免降重后AI率仍然过高，请尽量使用图片来展示表格，并不要将表格内容粘贴到系统中进行处理</p>
+                </div>
+                <div className="flex gap-3">
+                  <span className="flex-shrink-0 w-5 h-5 bg-ios-blue text-white rounded-full flex items-center justify-center text-xs font-bold mt-0.5">2</span>
+                  <p>为了尽可能在降重的前提下让语句更加通顺，默认会采用先优化表达后润色的方式，因此处理速度可能略慢，请耐心等待。</p>
+                </div>
+                <div className="flex gap-3">
+                  <span className="flex-shrink-0 w-5 h-5 bg-ios-blue text-white rounded-full flex items-center justify-center text-xs font-bold mt-0.5">3</span>
+                  <p>本系统使用的是按次收费的方式，没有免费试用机会，请将需要降重的内容一次性复制完毕，不需要只复制一小段测试效果。</p>
+                </div>
+              </div>
+            </div>
+
+            {/* 提示信息 */}
+            <div className="bg-blue-50 rounded-xl p-4">
+              <div className="flex gap-3 items-start">
+                <AlertCircle className="w-5 h-5 text-ios-blue flex-shrink-0 mt-0.5" />
+                <p className="text-ios-blue text-sm font-medium">
+                  如有问题，请联系管理员QQ1015256551获取相关帮助
+                </p>
+              </div>
+            </div>
+
+            {/* 按钮组 */}
+            <div className="grid grid-cols-2 gap-3 pt-2">
+              <button
+                onClick={() => {
+                  setShowInstructions(false);
+                  setShowWarning(true);
+                }}
+                className="bg-gray-100 hover:bg-gray-200 text-black font-medium py-3.5 px-6 rounded-xl transition-all active:scale-[0.98] text-[17px]"
+              >
+                返回
+              </button>
+              <button
+                onClick={handleStartUsing}
+                disabled={instructionCountdown > 0}
+                className={`font-semibold py-3.5 px-6 rounded-xl transition-all active:scale-[0.98] text-[17px] ${
+                  instructionCountdown > 0
+                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    : 'bg-ios-green hover:bg-green-600 text-white'
+                }`}
+              >
+                {instructionCountdown > 0 ? `请阅读说明 (${instructionCountdown}s)` : '开始使用'}
+              </button>
+            </div>
+          </div>
+        ) : null}
       </div>
     </div>
   );
