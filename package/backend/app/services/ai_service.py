@@ -74,32 +74,63 @@ THINKING_TAG_BUFFER_SIZE = 20
 
 
 def remove_thinking_tags(text: str) -> str:
-    """移除 AI 模型输出的思考标签
-    
+    """移除 AI 模型输出的思考标签和 markdown 格式标记
+
     某些 AI 模型（如 DeepSeek、o1）会在输出中包含思考过程标签，
-    这些标签需要被过滤掉，避免显示在前端。
-    
-    Args:
-        text: 原始文本
-        
-    Returns:
-        移除思考标签后的文本
+    同时也可能输出 markdown 格式内容（```、**、# 等）。
+
+    本函数会尽量去除这些标记，保留可读纯文本。
     """
     if not text:
         return text
-    
-    # 移除 <think>...</think> 和 <thinking>...</thinking> 标签及其内容
-    # 使用 DOTALL 标志使 . 匹配换行符
+
+    # 1. 移除 <think>...</think> 和 <thinking>...</thinking> 标签及其内容
     text = re.sub(r'<think>.*?</think>', '', text, flags=re.DOTALL | re.IGNORECASE)
     text = re.sub(r'<thinking>.*?</thinking>', '', text, flags=re.DOTALL | re.IGNORECASE)
-    
-    # 移除可能残留的单独标签
+
+    # 2. 移除可能残留的单独标签
     text = re.sub(r'</?think>', '', text, flags=re.IGNORECASE)
     text = re.sub(r'</?thinking>', '', text, flags=re.IGNORECASE)
-    
-    # 清理可能产生的多余空白
+
+    # 3. 清理 markdown 代码块围栏（保留内容）
+    text = re.sub(r'^```(?:\w*)\s*\n', '', text, flags=re.MULTILINE)
+    text = re.sub(r'\n```\s*$', '', text, flags=re.MULTILINE)
+    text = re.sub(r'^```\s*$', '', text, flags=re.MULTILINE)
+    text = re.sub(r'```', '', text)
+
+    # 4. 标题：# / ## / ### ...
+    text = re.sub(r'^#{1,6}\s+', '', text, flags=re.MULTILINE)
+
+    # 5. 链接：[text](url) → text
+    text = re.sub(r'\[([^\]]+)\]\([^)]+\)', r'\1', text)
+
+    # 6. 图片：![alt](url) → alt
+    text = re.sub(r'!\[([^\]]*)\]\([^)]+\)', r'\1', text)
+
+    # 7. 加粗：**text** / __text__
+    text = re.sub(r'\*\*(.+?)\*\*', r'\1', text)
+    text = re.sub(r'__(.+?)__', r'\1', text)
+
+    # 8. 行内代码：`code`
+    text = re.sub(r'`(.+?)`', r'\1', text)
+
+    # 9. 斜体：*text* / _text_（尽量避免误伤下划线变量名）
+    text = re.sub(r'(?<!\w)\*(.+?)\*(?!\w)', r'\1', text)
+    text = re.sub(r'(?<!\w)_(.+?)_(?!\w)', r'\1', text)
+
+    # 10. 列表：- * + / 1.
+    text = re.sub(r'^[\-\*\+]\s+', '', text, flags=re.MULTILINE)
+    text = re.sub(r'^\d+\.\s+', '', text, flags=re.MULTILINE)
+
+    # 11. 引用：> quote
+    text = re.sub(r'^>\s*', '', text, flags=re.MULTILINE)
+
+    # 12. 分割线：--- / *** / ___
+    text = re.sub(r'^[-*_]{3,}\s*$', '', text, flags=re.MULTILINE)
+
+    # 13. 清理多余空白
     text = re.sub(r'\n\s*\n\s*\n', '\n\n', text)
-    
+
     return text.strip()
 
 
