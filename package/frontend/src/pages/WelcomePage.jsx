@@ -10,6 +10,7 @@ const WelcomePage = () => {
   const [showWarning, setShowWarning] = useState(false);
   const [loading, setLoading] = useState(false);
   const [apiStatus, setApiStatus] = useState(null);
+  const [readCountdown, setReadCountdown] = useState(0);
   const navigate = useNavigate();
 
   // 检查 API 可用性 - 改为静默检查，避免启动时报错
@@ -19,13 +20,13 @@ const WelcomePage = () => {
         const response = await healthAPI.checkModels();
         const data = response.data;
         setApiStatus(data);
-        
+
         // 只在所有模型都不可用时才显示警告
         if (data.overall_status === 'degraded') {
           const unavailableModels = Object.entries(data.models)
             .filter(([_, model]) => model.status === 'unavailable')
             .map(([name, _]) => name);
-          
+
           // 只在所有模型都不可用时才显示错误
           const allUnavailable = unavailableModels.length === Object.keys(data.models).length;
           if (allUnavailable) {
@@ -41,6 +42,27 @@ const WelcomePage = () => {
     checkApiHealth();
   }, []);
 
+  // 学术诚信强制阅读：打开弹窗后倒计时 10 秒，倒计时结束才能继续
+  useEffect(() => {
+    if (!showWarning) {
+      setReadCountdown(0);
+      return;
+    }
+
+    setReadCountdown(10);
+    const intervalId = setInterval(() => {
+      setReadCountdown((prev) => {
+        if (prev <= 1) {
+          clearInterval(intervalId);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+
+    return () => clearInterval(intervalId);
+  }, [showWarning]);
+
   const handleContinue = async () => {
     if (!cardKey.trim()) {
       toast.error('请输入卡密');
@@ -52,7 +74,7 @@ const WelcomePage = () => {
       const allUnavailable = Object.values(apiStatus.models).every(
         model => model.status === 'unavailable'
       );
-      
+
       if (allUnavailable) {
         toast.error('所有 AI 模型当前不可用，无法使用系统。请联系管理员。');
         return;
@@ -60,14 +82,14 @@ const WelcomePage = () => {
         toast.warning('部分 AI 模型不可用，系统功能可能受限。');
       }
     }
-    
+
     // 验证卡密
     setLoading(true);
     try {
       const response = await axios.post('/api/admin/verify-card-key', {
         card_key: cardKey
       });
-      
+
       if (response.data.valid) {
         setShowWarning(true);
       }
@@ -79,6 +101,9 @@ const WelcomePage = () => {
   };
 
   const handleAccept = () => {
+    if (readCountdown > 0) {
+      return;
+    }
     localStorage.setItem('cardKey', cardKey);
     navigate('/workspace');
   };
@@ -210,9 +235,14 @@ const WelcomePage = () => {
               </button>
               <button
                 onClick={handleAccept}
-                className="bg-ios-green hover:bg-green-600 text-white font-semibold py-3.5 px-6 rounded-xl transition-all active:scale-[0.98] text-[17px]"
+                disabled={readCountdown > 0}
+                className={`font-semibold py-3.5 px-6 rounded-xl transition-all active:scale-[0.98] text-[17px] ${
+                  readCountdown > 0
+                    ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                    : 'bg-ios-green hover:bg-green-600 text-white'
+                }`}
               >
-                同意并继续
+                {readCountdown > 0 ? `请阅读条款 (${readCountdown}s)` : '同意并继续'}
               </button>
             </div>
           </div>
