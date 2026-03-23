@@ -146,21 +146,37 @@ async def startup_event():
     # 冷启动恢复：将重启前处于 queued/processing 的会话重新调度
     db = SessionLocal()
     try:
+        print("[DEBUG] 开始查询未完成的会话...")
         sessions = db.query(OptimizationSession).filter(
             OptimizationSession.status.in_(["queued", "processing"])
         ).all()
+        print(f"[DEBUG] 查询完成，找到 {len(sessions) if sessions else 0} 个会话")
 
         if sessions:
             print(f"[STARTUP] 发现 {len(sessions)} 个未完成的会话，正在恢复...")
-            for session in sessions:
-                print(f"[STARTUP] 恢复会话: session_id={session.session_id}, status={session.status}, progress={session.progress:.1f}%")
+            for idx, session in enumerate(sessions):
+                print(f"[STARTUP] 恢复会话 [{idx+1}/{len(sessions)}]:")
+                print(f"  - session_id: {session.session_id}")
+                print(f"  - db_id: {session.id}")
+                print(f"  - status: {session.status}")
+                print(f"  - progress: {session.progress:.1f}%")
+                print(f"  - current_position: {session.current_position}")
+                print(f"  - current_stage: {session.current_stage}")
+                print(f"  - failed_segment_index: {session.failed_segment_index}")
+                print(f"  - processing_mode: {session.processing_mode}")
                 # 为每个任务创建独立的数据库会话
-                asyncio.create_task(optimization.run_optimization(session.id, SessionLocal()))
+                task = asyncio.create_task(optimization.run_optimization(session.id, SessionLocal()))
+                print(f"  - task created: {task}")
             print(f"[STARTUP] 所有未完成会话已调度恢复")
         else:
             print("[STARTUP] 没有需要恢复的会话")
+    except Exception as e:
+        print(f"[ERROR] 冷启动恢复失败: {e}")
+        import traceback
+        traceback.print_exc()
     finally:
         db.close()
+        print("[DEBUG] 数据库会话已关闭")
 
 
 @app.on_event("shutdown")
