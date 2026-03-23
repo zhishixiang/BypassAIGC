@@ -405,8 +405,15 @@ const WorkspacePage = () => {
                   placeholder="在此粘贴您的内容..."
                   className="w-full h-64 px-4 py-3 bg-gray-50 rounded-xl focus:bg-white focus:ring-2 focus:ring-ios-blue/20 transition-all text-[16px] leading-relaxed text-black placeholder-gray-400 border-none outline-none resize-none"
                 />
-                <div className="absolute bottom-3 right-3 text-[12px] text-ios-gray bg-white/80 px-2 py-1 rounded-md backdrop-blur-sm">
-                  {text.length} 字
+                <div className="absolute bottom-3 right-3 flex items-center gap-2">
+                  <span className="text-[12px] text-ios-gray bg-white/80 px-2 py-1 rounded-md backdrop-blur-sm">
+                    {text.length} 字
+                  </span>
+                  {text.length >= 20000 && (
+                    <span className="text-[12px] text-orange-600 bg-orange-50 px-2 py-1 rounded-md">
+                      将扣 {Math.floor(text.length / 20000)} 次
+                    </span>
+                  )}
                 </div>
               </div>
               

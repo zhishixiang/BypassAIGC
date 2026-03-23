@@ -51,7 +51,7 @@ const WelcomePage = () => {
       return;
     }
 
-    setReadCountdown(10);
+    setReadCountdown(5);
     const intervalId = setInterval(() => {
       setReadCountdown((prev) => {
         if (prev <= 1) {
@@ -65,14 +65,14 @@ const WelcomePage = () => {
     return () => clearInterval(intervalId);
   }, [showWarning]);
 
-  // 使用说明强制阅读：打开弹窗后倒计时 10 秒，倒计时结束才能继续
+  // 使用说明强制阅读：打开弹窗后倒计时 5 秒，倒计时结束才能继续
   useEffect(() => {
     if (!showInstructions) {
       setInstructionCountdown(0);
       return;
     }
 
-    setInstructionCountdown(10);
+    setInstructionCountdown(5);
     const intervalId = setInterval(() => {
       setInstructionCountdown((prev) => {
         if (prev <= 1) {
@@ -304,10 +304,6 @@ const WelcomePage = () => {
                 <div className="flex gap-3">
                   <span className="flex-shrink-0 w-5 h-5 bg-ios-blue text-white rounded-full flex items-center justify-center text-xs font-bold mt-0.5">3</span>
                   <p>本系统使用的是按次收费的方式，没有免费试用机会，请将需要降重的内容一次性复制完毕，不需要只复制一小段测试效果。</p>
-                </div>
-                <div className="flex gap-3">
-                  <span className="flex-shrink-0 w-5 h-5 bg-ios-blue text-white rounded-full flex items-center justify-center text-xs font-bold mt-0.5">3</span>
-                  <p>各家的AIGC检测方式和标准可能不一致，本系统仅对腾讯朱雀AI检测助手做过大规模测试并以此为参考，多数情况下能通过朱雀就能通过知网维普的检测</p>
                 </div>
               </div>
             </div>

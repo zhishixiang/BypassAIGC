@@ -58,14 +58,28 @@ async def start_optimization(
     db: Session = Depends(get_db)
 ):
     """开始优化任务"""
+    from app.services.ai_service import count_text_length
+
     user = get_current_user(card_key, db)
 
     usage_limit = user.usage_limit if user.usage_limit is not None else settings.DEFAULT_USAGE_LIMIT
     usage_count = user.usage_count or 0
+
+    # 每2万字扣1次（本次请求独立计算，不累计）
+    text_length = count_text_length(data.original_text)
+    chars_per_deduction = 20000
+    required_deductions = text_length // chars_per_deduction
+
     # 0 表示无限制
-    if usage_limit > 0 and usage_count >= usage_limit:
-        raise HTTPException(status_code=403, detail="该卡密已达到使用次数限制")
-    
+    if usage_limit > 0 and usage_count + required_deductions > usage_limit:
+        raise HTTPException(
+            status_code=403,
+            detail=(
+                f"使用次数不足。本次需扣除 {required_deductions} 次，"
+                f"剩余 {usage_limit - usage_count} 次。"
+            )
+        )
+
     # 验证处理模式
     valid_modes = ['paper_polish', 'paper_enhance', 'paper_polish_enhance', 'emotion_polish']
     if data.processing_mode not in valid_modes:
@@ -81,7 +95,7 @@ async def start_optimization(
         initial_stage = 'enhance'
     else:
         initial_stage = 'polish'
-    
+
     # 创建会话
     session_id = generate_session_id()
     session = OptimizationSession(
@@ -102,15 +116,15 @@ async def start_optimization(
         emotion_api_key=data.emotion_config.api_key if data.emotion_config else None,
         emotion_base_url=data.emotion_config.base_url if data.emotion_config else None
     )
-    
+
     db.add(session)
-    user.usage_count = usage_count + 1
+    user.usage_count = usage_count + required_deductions
     db.commit()
     db.refresh(session)
-    
+
     # 添加后台任务
     background_tasks.add_task(run_optimization, session.id, db)
-    
+
     return session
 
 
