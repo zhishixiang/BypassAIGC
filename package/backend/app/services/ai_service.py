@@ -597,43 +597,73 @@ def count_text_length(text: str) -> int:
     return len(english_pattern.findall(text))
 
 
-def split_text_into_segments(text: str, max_chars: int = 500) -> List[str]:
-    """将文本分割为段落
-    
-    按照段落分割,如果单个段落过长则进一步分割
+def split_text_into_segments(text: str, max_chars: int = 400) -> List[str]:
+    """将文本分割为段落，合并小段落以减少分段数量
+
+    按照段落分割，相邻的小段落会合并直到达到阈值，超长段落按句子拆分。
+    保留原文段落的换行符分隔。
     """
-    # 首先按段落分割
     paragraphs = text.split('\n')
     segments = []
-    
+    current_segment = ""
+
     for para in paragraphs:
         para = para.strip()
         if not para:
             continue
-        
-        # 如果段落不超过最大字符数,直接添加
-        if count_text_length(para) <= max_chars:
-            segments.append(para)
-        else:
-            # 段落过长,按句子分割
+
+        para_length = count_text_length(para)
+
+        # 如果当前段落本身超长，需要特殊处理
+        if para_length > max_chars:
+            # 先把积累的小段落保存
+            if current_segment:
+                segments.append(current_segment)
+                current_segment = ""
+
+            # 超长段落按句子分割
             sentences = re.split(r'([。!?;])', para)
-            current_segment = ""
-            
+            temp_segment = ""
+
             for i in range(0, len(sentences), 2):
                 sentence = sentences[i]
                 if i + 1 < len(sentences):
                     sentence += sentences[i + 1]  # 加上标点
-                
-                if count_text_length(current_segment + sentence) <= max_chars:
-                    current_segment += sentence
+
+                if count_text_length(temp_segment + sentence) <= max_chars:
+                    temp_segment += sentence
+                else:
+                    if temp_segment:
+                        segments.append(temp_segment)
+                    temp_segment = sentence
+
+            if temp_segment:
+                # 尝试合并到 current_segment，否则单独成段
+                if current_segment and count_text_length(current_segment + "\n" + temp_segment) <= max_chars:
+                    current_segment = current_segment + "\n" + temp_segment
                 else:
                     if current_segment:
                         segments.append(current_segment)
-                    current_segment = sentence
-            
+                        current_segment = ""
+                    segments.append(temp_segment)
+        else:
+            # 小段落：尝试合并
             if current_segment:
+                merged = current_segment + "\n" + para
+            else:
+                merged = para
+
+            if count_text_length(merged) <= max_chars:
+                current_segment = merged
+            else:
+                # 达到阈值，输出当前段，开始新段
                 segments.append(current_segment)
-    
+                current_segment = para
+
+    # 处理最后剩余的段落
+    if current_segment:
+        segments.append(current_segment)
+
     return segments
 
 

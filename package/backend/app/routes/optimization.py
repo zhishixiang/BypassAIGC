@@ -38,16 +38,25 @@ def get_current_user(card_key: str, db: Session = Depends(get_db)) -> User:
 
 
 async def run_optimization(session_id: int, db: Session):
-    """后台运行优化任务"""
-    session_obj = db.query(OptimizationSession).filter(
-        OptimizationSession.id == session_id
-    ).first()
-    
-    if not session_obj:
-        return
-    
-    service = OptimizationService(db, session_obj)
-    await service.start_optimization()
+    """后台运行优化任务
+
+    Args:
+        session_id: 会话ID
+        db: 数据库会话（任务完成后会自动关闭）
+    """
+    try:
+        session_obj = db.query(OptimizationSession).filter(
+            OptimizationSession.id == session_id
+        ).first()
+
+        if not session_obj:
+            return
+
+        service = OptimizationService(db, session_obj)
+        await service.start_optimization()
+    finally:
+        # 确保数据库会话被关闭
+        db.close()
 
 
 @router.post("/start", response_model=SessionResponse)
