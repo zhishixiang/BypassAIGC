@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session, defer
 from sqlalchemy import func, and_, case
 from typing import List
 import json
+import math
 from app.database import get_db
 from app.models.models import User, OptimizationSession, OptimizationSegment, ChangeLog
 from app.schemas import (
@@ -74,10 +75,10 @@ async def start_optimization(
     usage_limit = user.usage_limit if user.usage_limit is not None else settings.DEFAULT_USAGE_LIMIT
     usage_count = user.usage_count or 0
 
-    # 每2万字扣1次（本次请求独立计算，不累计）
+    # 每2万字扣1次，向上取整，最少扣1次
     text_length = count_text_length(data.original_text)
     chars_per_deduction = 20000
-    required_deductions = text_length // chars_per_deduction
+    required_deductions = max(1, math.ceil(text_length / chars_per_deduction))
 
     # 0 表示无限制
     if usage_limit > 0 and usage_count + required_deductions > usage_limit:
