@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request, HTTPException, Response
+from fastapi import FastAPI, Request, HTTPException, Response, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from starlette.middleware.base import BaseHTTPMiddleware
@@ -7,6 +7,7 @@ import sys
 from datetime import datetime, timedelta
 from collections import defaultdict
 from typing import Dict, Tuple, Optional
+import asyncio
 
 # 先导入 config 以便加载环境变量
 from app.config import settings
@@ -14,7 +15,7 @@ from app.database import init_db
 from app.routes import admin, prompts, optimization
 from app.word_formatter import router as word_formatter_router
 from app.word_formatter.services import get_job_manager
-from app.models.models import CustomPrompt
+from app.models.models import CustomPrompt, OptimizationSession
 from app.database import SessionLocal
 from app.services.ai_service import get_default_polish_prompt, get_default_enhance_prompt
 
@@ -139,6 +140,25 @@ async def startup_event():
             db.add(enhance_prompt)
 
         db.commit()
+    finally:
+        db.close()
+
+    # 冷启动恢复：将重启前处于 queued/processing 的会话重新调度
+    db = SessionLocal()
+    try:
+        sessions = db.query(OptimizationSession).filter(
+            OptimizationSession.status.in_(["queued", "processing"])
+        ).all()
+
+        if sessions:
+            print(f"[STARTUP] 发现 {len(sessions)} 个未完成的会话，正在恢复...")
+            for session in sessions:
+                print(f"[STARTUP] 恢复会话: session_id={session.session_id}, status={session.status}, progress={session.progress:.1f}%")
+                # 为每个任务创建独立的数据库会话
+                asyncio.create_task(optimization.run_optimization(session.id, SessionLocal()))
+            print(f"[STARTUP] 所有未完成会话已调度恢复")
+        else:
+            print("[STARTUP] 没有需要恢复的会话")
     finally:
         db.close()
 
