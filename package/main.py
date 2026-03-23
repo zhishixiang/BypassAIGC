@@ -6,8 +6,6 @@ AI 学术写作助手 - 统一入口
 
 import os
 import sys
-import webbrowser
-import threading
 import time
 import signal
 from typing import Optional
@@ -412,14 +410,6 @@ else:
         }
 
 
-def open_browser(port: int):
-    """延迟打开浏览器"""
-    time.sleep(2)  # 等待服务器启动
-    url = f"http://localhost:{port}"
-    print(f"\n🌐 正在打开浏览器: {url}")
-    webbrowser.open(url)
-
-
 def create_sample_env():
     """创建示例 .env 文件（如果不存在）"""
     if not os.path.exists(ENV_FILE):
@@ -498,12 +488,7 @@ def main():
     print(f"📍 API 文档: http://{host}:{port}/docs")
     print("\n按 Ctrl+C 停止服务")
     print("="*60 + "\n")
-    
-    # 在后台线程中打开浏览器
-    browser_thread = threading.Thread(target=open_browser, args=(port,))
-    browser_thread.daemon = True
-    browser_thread.start()
-    
+
     # 启动 uvicorn 服务器
     try:
         uvicorn.run(
