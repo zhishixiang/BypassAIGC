@@ -366,7 +366,7 @@ const WorkspacePage = () => {
                 <div className="space-y-3">
                   {[
                     { id: 'paper_polish', title: '论文润色', desc: '提升学术表达质量' },
-                    { id: 'paper_polish_enhance', title: '润色 + 增强', desc: '提升原创性与学术水平' },
+                    { id: 'paper_polish_enhance', title: '润色 + 增强(适用于多数情况)', desc: '提升原创性与学术水平' },
                     { id: 'emotion_polish', title: '感情文章润色', desc: '自然、人性化表达' }
                   ].map((mode) => (
                     <label
